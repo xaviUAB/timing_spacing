@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timing i Spacing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        .canvas-container {
+            position: relative; width: 100%;
+            background-color: #1e293b; border-radius: 0.5rem;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.3);
+            overflow: hidden; border: 1px solid #334155;
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* Sliders */
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: #3b82f6; cursor: pointer; margin-top: -6px; 
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 6px; cursor: pointer; background: #475569; border-radius: 3px;
+        }
+        
+        /* Timeline Scrubber specific */
+        .timeline-scrubber::-webkit-slider-thumb { background: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
+        .timeline-scrubber::-webkit-slider-runnable-track { background: #334155; }
+
+        .btn-active { background-color: #3b82f6 !important; color: white !important; border-color: #2563eb !important; }
+        .tab-active { border-bottom: 2px solid #3b82f6; color: #60a5fa !important; font-weight: 600; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        #bezier-canvas { background-color: #0f172a; border-radius: 4px; cursor: crosshair; }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex flex-col min-h-screen">
+
+    <div class="max-w-6xl mx-auto w-full flex-grow flex flex-col">
+        
+        <!-- HEADER -->
+        <header class="mb-6 flex flex-col md:flex-row justify-between items-center border-b border-slate-700 pb-4 gap-4">
+            <div class="text-center md:text-left">
+                <h1 class="text-3xl font-extrabold text-white mb-1"><i class="fa-solid fa-stopwatch text-blue-500 mr-2"></i>Timing i Spacing</h1>
+                <p class="text-sm text-slate-400">Eina didàctica d'estudi de fotogrames i físiques per a l'estudiantat</p>
+            </div>
+            
+            <div class="flex items-center gap-4 bg-slate-800 p-2 rounded-lg border border-slate-700">
+                <div class="flex items-center gap-2 px-2 border-r border-slate-600">
+                    <i class="fa-solid fa-film text-slate-400"></i>
+                    <select id="global-fps" class="bg-transparent text-white font-mono text-sm outline-none cursor-pointer">
+                        <option value="12" class="bg-slate-800 text-white">12 FPS (A dosos)</option>
+                        <option value="24" class="bg-slate-800 text-white" selected>24 FPS (Estàndard)</option>
+                        <option value="60" class="bg-slate-800 text-white">60 FPS (Fluid)</option>
+                    </select>
+                </div>
+                <label class="flex items-center text-sm text-slate-300 cursor-pointer hover:text-white transition px-2">
+                    <input type="checkbox" id="global-grid-chk" class="mr-2 h-4 w-4 text-blue-600 rounded border-slate-500 bg-slate-700">
+                    Graella
+                </label>
+            </div>
+        </header>
+
+        <!-- TABS NAV -->
+        <div class="flex border-b border-slate-700 mb-6 overflow-x-auto no-scrollbar text-sm">
+            <button class="tab-btn whitespace-nowrap flex-1 py-3 px-2 text-slate-400 hover:text-blue-400 tab-active" data-target="sec-vehicle"><i class="fa-solid fa-bezier-curve mr-1"></i> 1. Vehicle (Bézier)</button>
+            <button class="tab-btn whitespace-nowrap flex-1 py-3 px-2 text-slate-400 hover:text-blue-400" data-target="sec-caiguda"><i class="fa-solid fa-arrows-down-to-line mr-1"></i> 2. Caiguda Lliure</button>
+            <button class="tab-btn whitespace-nowrap flex-1 py-3 px-2 text-slate-400 hover:text-blue-400" data-target="sec-bot"><i class="fa-solid fa-arrow-down-up-across-line mr-1"></i> 3. Bot Vertical</button>
+            <button class="tab-btn whitespace-nowrap flex-1 py-3 px-2 text-slate-400 hover:text-blue-400" data-target="sec-arc"><i class="fa-solid fa-wobble mr-1"></i> 4. Bot en Arc</button>
+            <button class="tab-btn whitespace-nowrap flex-1 py-3 px-2 text-slate-400 hover:text-blue-400" data-target="sec-pendol"><i class="fa-solid fa-clock mr-1"></i> 5. Pèndol</button>
+        </div>
+
+        <!-- SHARED TIMELINE CONTROLS -->
+        <div class="bg-slate-900 border border-slate-700 p-3 rounded-xl mb-6 shadow-lg flex items-center gap-4 sticky top-0 z-10">
+            <button id="master-play" class="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center text-lg shadow-lg transition-transform hover:scale-105">
+                <i class="fa-solid fa-play ml-1"></i>
+            </button>
+            <div class="flex-grow flex flex-col">
+                <div class="flex justify-between text-xs text-slate-400 mb-1 font-mono">
+                    <span>Fotograma actual: <span id="lbl-frame-current" class="text-white">0</span></span>
+                    <span>Total: <span id="lbl-frame-total">0</span></span>
+                </div>
+                <input type="range" id="master-scrubber" class="timeline-scrubber w-full" min="0" max="100" value="0">
+            </div>
+        </div>
+
+        <!-- 1. VEHICLE (BEZIER) -->
+        <div id="sec-vehicle" class="tab-content block flex-grow">
+            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 flex flex-col">
+                    <h2 class="text-xl font-semibold mb-2">Editor d'Spacing (Bézier Custom)</h2>
+                    <div class="canvas-container flex-grow min-h-[250px]" id="veh-container">
+                        <canvas id="veh-canvas"></canvas>
+                    </div>
+                </div>
+                <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex flex-col items-center">
+                    <h3 class="text-sm font-medium text-slate-300 mb-2">Corba d'Acceleració (Arrossega els punts)</h3>
+                    <canvas id="bezier-canvas" width="200" height="200" class="border border-slate-600 mb-4"></canvas>
+                    <div class="w-full flex gap-2">
+                        <button class="flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded" onclick="setBezier(0,0,1,1)">Lineal</button>
+                        <button class="flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded" onclick="setBezier(0.42,0,1,1)">Ease In</button>
+                        <button class="flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded" onclick="setBezier(0,0,0.58,1)">Ease Out</button>
+                        <button class="flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded" onclick="setBezier(0.42,0,0.58,1)">Ease In/Out</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. CAIGUDA (COMPARATIVA) -->
+        <div id="sec-caiguda" class="tab-content hidden flex-grow">
+            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 h-full flex flex-col">
+                <h2 class="text-xl font-semibold mb-2">Caiguda: Lineal vs Gravetat</h2>
+                <div class="canvas-container flex-grow min-h-[400px]" id="caiguda-container">
+                    <canvas id="caiguda-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. BOT VERTICAL -->
+        <div id="sec-bot" class="tab-content hidden flex-grow">
+            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
+                <div class="lg:col-span-3 canvas-container min-h-[400px]" id="bot-container">
+                    <canvas id="bot-canvas"></canvas>
+                </div>
+                <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex flex-col gap-4">
+                    <div>
+                        <label class="block text-sm text-slate-300 mb-1">Gravetat</label>
+                        <input type="range" id="bot-grav" min="0.1" max="1.0" step="0.1" value="0.5">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-300 mb-1">Rebot (Bounciness)</label>
+                        <input type="range" id="bot-bounc" min="0.3" max="0.95" step="0.05" value="0.8">
+                    </div>
+                    <label class="flex items-center text-sm text-slate-300 cursor-pointer mt-2">
+                        <input type="checkbox" id="bot-squash" checked class="mr-2 h-4 w-4 bg-slate-700 rounded border-slate-500"> Squash & Stretch
+                    </label>
+                    <label class="flex items-center text-sm text-slate-300 cursor-pointer">
+                        <input type="checkbox" id="bot-onion" checked class="mr-2 h-4 w-4 bg-slate-700 rounded border-slate-500"> Onion Skin (Rastre)
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. BOT EN ARC (DOBLE) -->
+        <div id="sec-arc" class="tab-content hidden flex-grow">
+            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
+                <div class="lg:col-span-3 canvas-container min-h-[400px]" id="arc-container">
+                    <canvas id="arc-canvas"></canvas>
+                </div>
+                <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex flex-col gap-4">
+                    <h3 class="text-sm font-semibold border-b border-slate-700 pb-2">Comparativa de Materials</h3>
+                    
+                    <div>
+                        <label class="block text-xs text-rose-400 mb-1 uppercase font-bold">Pilota 1 (Vermella)</label>
+                        <select id="arc-mat1" class="w-full bg-slate-800 text-sm p-2 rounded border border-slate-600 text-white outline-none">
+                            <option value="pingpong">Ping Pong (Lleugera)</option>
+                            <option value="rubber" selected>Pilota de Goma</option>
+                            <option value="bowling">Bitlles (Pesada)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-emerald-400 mb-1 uppercase font-bold mt-2">Pilota 2 (Verda)</label>
+                        <select id="arc-mat2" class="w-full bg-slate-800 text-sm p-2 rounded border border-slate-600 text-white outline-none">
+                            <option value="pingpong">Ping Pong (Lleugera)</option>
+                            <option value="rubber">Pilota de Goma</option>
+                            <option value="bowling" selected>Bitlles (Pesada)</option>
+                            <option value="none">--- Ocultar ---</option>
+                        </select>
+                    </div>
+
+                    <label class="flex items-center text-sm text-slate-300 cursor-pointer mt-4">
+                        <input type="checkbox" id="arc-onion" checked class="mr-2 h-4 w-4 bg-slate-700 rounded border-slate-500"> Onion Skin
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. PÈNDOL -->
+        <div id="sec-pendol" class="tab-content hidden flex-grow">
+            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 h-full flex flex-col">
+                <h2 class="text-xl font-semibold mb-2">Pèndol: Moviment Mecànic vs Natural</h2>
+                <div class="canvas-container flex-grow min-h-[400px]" id="pendol-container">
+                    <canvas id="pendol-canvas"></canvas>
+                </div>
+                <div class="flex flex-wrap justify-center items-center gap-6 mt-4 text-sm font-mono text-slate-400">
+                    <span class="text-rose-400"><i class="fa-solid fa-robot mr-1"></i>Pèndol Mecànic (Lineal)</span>
+                    <span class="text-emerald-400"><i class="fa-solid fa-leaf mr-1"></i>Pèndol Natural (Trigonomètric)</span>
+                    <label class="flex items-center text-sm text-slate-300 cursor-pointer hover:text-white transition bg-slate-700/50 px-3 py-1.5 rounded-lg border border-slate-600">
+                        <input type="checkbox" id="pendol-loop" checked class="mr-2 h-4 w-4 bg-slate-700 rounded border-slate-500 text-blue-500"> 
+                        Activar Bucle (Loop)
+                    </label>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="mt-4 text-center text-slate-500 text-xs font-mono pb-4 w-full">
+        <p>Una creació de Xavier Ribes - Departament de Comunicació Audiovisual i Publicitat de la UAB</p>
+    </footer>
+
+    <script>
+        // ==========================================
+        // 1. ESTAT GLOBAL I SISTEMA DE REPRODUCCIÓ
+        // ==========================================
+        const appState = {
+            fps: 24,
+            currentTabId: 'sec-vehicle',
+            showGrid: false,
+            isPlaying: false,
+            currentFrame: 0,
+            maxFrames: 0,
+            lastTick: performance.now(),
+            dtAccumulator: 0
+        };
+
+        const materials = {
+            'pingpong': { g: 800, bounce: 0.85, friction: 0.98, vx: 300, vy: -200, color: '#fcd34d', radius: 15 },
+            'rubber':   { g: 1500, bounce: 0.7, friction: 0.96, vx: 350, vy: -300, color: '#ef4444', radius: 22 },
+            'bowling':  { g: 2500, bounce: 0.22, friction: 0.80, vx: 200, vy: -80, color: '#10b981', radius: 32 },
+            'none': null
+        };
+
+        // ==========================================
+        // 2. MATEMÀTIQUES I FÍSIQUES (PRE-CALCULADORES)
+        // ==========================================
+        
+        // LUT Bezier Curve Solver (per a la pestanya 1)
+        class BezierLUT {
+            constructor() { this.p1x = 0.42; this.p1y = 0; this.p2x = 0.58; this.p2y = 1; this.build(); }
+            set(x1, y1, x2, y2) { this.p1x = x1; this.p1y = y1; this.p2x = x2; this.p2y = y2; this.build(); }
+            build() {
+                this.lut = [];
+                for(let i=0; i<=200; i++) {
+                    let t = i/200;
+                    let x = 3*Math.pow(1-t,2)*t*this.p1x + 3*(1-t)*Math.pow(t,2)*this.p2x + Math.pow(t,3);
+                    let y = 3*Math.pow(1-t,2)*t*this.p1y + 3*(1-t)*Math.pow(t,2)*this.p2y + Math.pow(t,3);
+                    this.lut.push({x, y});
+                }
+            }
+            getY(xTarget) {
+                if(xTarget <= 0) return 0; if(xTarget >= 1) return 1;
+                let i = 0; while(i < this.lut.length-1 && this.lut[i+1].x < xTarget) i++;
+                let pA = this.lut[i], pB = this.lut[i+1];
+                let ratio = (xTarget - pA.x) / ((pB.x - pA.x)||0.001);
+                return pA.y + ratio * (pB.y - pA.y);
+            }
+        }
+        const customBezier = new BezierLUT();
+
+        // Controladors de cada pestanya per generar dades fotograma a fotograma
+        const simulators = {
+            
+            'sec-vehicle': function(width, height) {
+                const frames = [];
+                const dur = 2.0; const totalFrames = Math.floor(appState.fps * dur);
+                const startX = 60, distance = width - 120, yPos = height - 55;
+                for(let i=0; i<=totalFrames; i++) {
+                    let t = i / totalFrames;
+                    let ease = customBezier.getY(t);
+                    frames.push({ x: startX + distance * ease, y: yPos, ease });
+                }
+                return frames;
+            },
+
+            'sec-caiguda': function(width, height) {
+                const frames = [];
+                const totalFrames = 24; // Fixat a 24 fotogrames per a la caiguda
+                const startY = 60, distance = height - 120;
+                for(let i=0; i<=totalFrames; i++) {
+                    let t = i / totalFrames;
+                    frames.push({
+                        y1: startY + distance * t, // Lineal
+                        y2: startY + distance * (t*t) // Gravetat (Power 2 accel)
+                    });
+                }
+                return frames;
+            },
+
+            'sec-bot': function(width, height) {
+                const frames = [];
+                const dt = 1.0 / appState.fps; // Base de temps adaptada als FPS globals
+                
+                // Paràmetres UI
+                const gUI = parseFloat(document.getElementById('bot-grav').value);
+                const bounceUI = parseFloat(document.getElementById('bot-bounc').value);
+                const doSquash = document.getElementById('bot-squash').checked;
+                
+                const gravity = gUI * 3000; 
+                const ground = height - 30;
+                let ball = { x: width/2, y: 50, vy: 0, r: 30, sx: 1, sy: 1 };
+                
+                let isResting = false;
+                let restFrames = 0;
+                const maxRestFrames = Math.floor(appState.fps * 0.5); // Afegim mig segon de repòs al final
+
+                // Bucle de simulació fins a assolir el repòs (amb límit de 15 segons per seguretat)
+                for(let i=0; i < appState.fps * 15; i++) {
+                    if (!isResting) {
+                        ball.vy += gravity * dt;
+                        ball.y += ball.vy * dt;
+                        ball.sx = 1; ball.sy = 1;
+
+                        if (ball.y + ball.r >= ground) {
+                            ball.y = ground - ball.r;
+                            
+                            if (doSquash && Math.abs(ball.vy) > 50) {
+                                let impact = Math.min(0.5, Math.abs(ball.vy) * 0.0003);
+                                ball.sy = 1 - impact; ball.sx = 1 + impact;
+                            }
+                            
+                            ball.vy = -ball.vy * bounceUI;
+                            if (Math.abs(ball.vy) < 20 && ball.y + ball.r >= ground - 1) {
+                                ball.vy = 0; 
+                                isResting = true;
+                            }
+                        } else if (doSquash) {
+                            let stretch = Math.min(0.5, Math.abs(ball.vy) * 0.0002);
+                            ball.sy = 1 + stretch; ball.sx = 1 / ball.sy;
+                        }
+                    }
+
+                    frames.push({ x: ball.x, y: ball.y, sx: ball.sx, sy: ball.sy, vy: ball.vy });
+
+                    if (isResting) {
+                        restFrames++;
+                        if (restFrames >= maxRestFrames) break;
+                    }
+                }
+                return frames;
+            },
+
+            'sec-arc': function(width, height) {
+                const frames = [];
+                const dt = 1.0 / appState.fps; // Base de temps adaptada als FPS globals
+                const mat1 = materials[document.getElementById('arc-mat1').value];
+                const mat2 = materials[document.getElementById('arc-mat2').value];
+                const ground = height - 30;
+
+                const createBallState = (mat) => {
+                    if(!mat) return null;
+                    return { x: mat.radius + 10, y: height/3, vx: mat.vx, vy: mat.vy, rot: 0, active: true, ...mat };
+                };
+
+                let b1 = createBallState(mat1);
+                let b2 = createBallState(mat2);
+
+                let restFrames = 0;
+                const maxRestFrames = Math.floor(appState.fps * 0.5); // Afegim mig segon de repòs al final
+
+                // Bucle de simulació fins a assolir el repòs o sortir de la pantalla
+                for(let i=0; i < appState.fps * 15; i++) {
+                    let f = { b1: null, b2: null };
+                    
+                    const updateBall = (b) => {
+                        if(!b) return null;
+                        if(b.active) {
+                            b.vy += b.g * dt;
+                            b.x += b.vx * dt;
+                            b.y += b.vy * dt;
+                            b.rot += (b.vx * dt) / b.radius;
+                            
+                            if (b.y + b.radius >= ground) {
+                                b.y = ground - b.radius;
+                                b.vy = -b.vy * b.bounce;
+                                if (Math.abs(b.vy) < 30) { 
+                                    b.vy = 0; 
+                                    b.vx *= b.friction; // Fricció ràpida en rodar per terra
+                                } else {
+                                    b.vx *= 0.98; // Lleugera pèrdua d'inèrcia a cada bot fort
+                                }
+                            }
+                            if (b.x + b.radius > width || (b.vy===0 && Math.abs(b.vx)<1)) {
+                                b.active = false;
+                            }
+                        }
+                        return { x: b.x, y: b.y, rot: b.rot, r: b.radius, c: b.color };
+                    };
+
+                    f.b1 = updateBall(b1);
+                    f.b2 = updateBall(b2);
+                    frames.push(f);
+
+                    if ((!b1 || !b1.active) && (!b2 || !b2.active)) {
+                        restFrames++;
+                        if (restFrames >= maxRestFrames) break;
+                    }
+                }
+                return frames;
+            },
+
+            'sec-pendol': function(width, height) {
+                const frames = [];
+                const dur = 3.0; const totalFrames = Math.floor(appState.fps * dur);
+                const maxAngle = Math.PI / 4; // 45 graus
+                
+                for(let i=0; i<=totalFrames; i++) {
+                    let t = i / totalFrames; // 0 to 1
+                    
+                    // Natural: Cosinusoidal (Ease in, Ease out en els pics)
+                    let angleNat = maxAngle * Math.cos(t * Math.PI * 2);
+                    
+                    // Lineal: Triangle wave (Rebot brusc)
+                    let angleLin = maxAngle * (Math.abs((t * 4) % 4 - 2) - 1);
+
+                    frames.push({ angleNat, angleLin });
+                }
+                return frames;
+            }
+        };
+
+        // Cache de dades calculades
+        const precalcData = {
+            'sec-vehicle': [], 'sec-caiguda': [], 'sec-bot': [], 'sec-arc': [], 'sec-pendol': []
+        };
+
+        const tabMap = {
+            'sec-vehicle': 'veh',
+            'sec-caiguda': 'caiguda',
+            'sec-bot': 'bot',
+            'sec-arc': 'arc',
+            'sec-pendol': 'pendol'
+        };
+
+        function recalculateCurrentTab() {
+            const id = appState.currentTabId;
+            const prefix = tabMap[id];
+            const container = document.getElementById(prefix + '-container');
+            if(!container || container.clientWidth === 0) return;
+            
+            const w = container.clientWidth; const h = container.clientHeight;
+            
+            // Re-calcular la mida només per al llenç actiu per evitar desajustos inicials (com la desaparició de pilotes)
+            const canvas = document.getElementById(prefix + '-canvas');
+            if(canvas) {
+                canvas.width = w;
+                canvas.height = h;
+            }
+
+            precalcData[id] = simulators[id](w, h);
+            appState.maxFrames = precalcData[id].length - 1;
+            
+            // Actualitzar Scrubber
+            const scrub = document.getElementById('master-scrubber');
+            scrub.max = appState.maxFrames;
+            if(appState.currentFrame > appState.maxFrames) appState.currentFrame = 0;
+            scrub.value = appState.currentFrame;
+            document.getElementById('lbl-frame-total').textContent = appState.maxFrames;
+            
+            drawCurrentTab();
+        }
+
+        // ==========================================
+        // 3. RENDERITZAT VIRTUAL (DRAW FUNCTIONS)
+        // ==========================================
+
+        function drawGrid(ctx, w, h) {
+            if(!appState.showGrid) return;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'; ctx.lineWidth = 1;
+            for(let x=0; x<w; x+=40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+            for(let y=0; y<h; y+=40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+        }
+
+        const renderers = {
+            'sec-vehicle': function(ctx, w, h, frames, fIdx) {
+                ctx.clearRect(0,0,w,h); drawGrid(ctx,w,h);
+                // Carretera
+                ctx.fillStyle = '#334155'; ctx.fillRect(0, h - 40, w, 40);
+                ctx.strokeStyle = '#64748b'; ctx.lineWidth = 4; ctx.setLineDash([20, 20]);
+                ctx.beginPath(); ctx.moveTo(0, h - 20); ctx.lineTo(w, h - 20); ctx.stroke(); ctx.setLineDash([]);
+
+                const startX = 60, endX = w - 60, yPos = h - 55;
+
+                // Regla (Ruler) per mostrar l'espaiat real per fotograma
+                ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(startX, yPos + 15); ctx.lineTo(endX, yPos + 15); ctx.stroke();
+                const numFrames = frames.length - 1;
+                if(numFrames > 0) {
+                    for(let i=0; i<=numFrames; i++) {
+                        let markX = frames[i].x; // La marca es posa on és l'objecte a cada frame
+                        ctx.beginPath(); ctx.moveTo(markX, yPos + 10); ctx.lineTo(markX, yPos + 20); ctx.stroke();
+                    }
+                }
+
+                const drawCar = (x, y, opacity) => {
+                    ctx.save(); ctx.globalAlpha = opacity; ctx.translate(x, y);
+                    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.roundRect(-40, -15, 80, 30, 8); ctx.fill();
+                    ctx.fillStyle = '#bae6fd'; ctx.beginPath(); ctx.roundRect(0, -12, 30, 12, [0, 4, 4, 0]); ctx.fill();
+                    ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.arc(-25, 15, 10, 0, Math.PI * 2); ctx.arc(25, 15, 10, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#94a3b8'; ctx.beginPath(); ctx.arc(-25, 15, 4, 0, Math.PI * 2); ctx.arc(25, 15, 4, 0, Math.PI * 2); ctx.fill();
+                    ctx.restore();
+                };
+
+                // Ghosting d'espaiat (dibuixar un de cada X frames)
+                const interval = Math.max(1, Math.floor(appState.fps / 6)); 
+                for(let i=0; i<frames.length; i+=interval) {
+                    drawCar(frames[i].x, frames[i].y, 0.15);
+                }
+
+                if(frames[fIdx]) drawCar(frames[fIdx].x, frames[fIdx].y, 1);
+            },
+
+            'sec-caiguda': function(ctx, w, h, frames, fIdx) {
+                ctx.clearRect(0,0,w,h); drawGrid(ctx,w,h);
+                ctx.fillStyle = '#334155'; ctx.fillRect(0, h - 30, w, 30); // Terra
+
+                const x1 = w/3, x2 = (w/3)*2;
+                const startY = 60, distance = h - 120, endY = startY + distance;
+                
+                // Tracklines i Regles de mesura d'espaiat
+                ctx.strokeStyle = '#475569'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(x1, startY); ctx.lineTo(x1, endY); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x2, startY); ctx.lineTo(x2, endY); ctx.stroke();
+
+                const drawRulerV = (xPos, key) => {
+                    ctx.beginPath(); ctx.moveTo(xPos, startY); ctx.lineTo(xPos, endY); ctx.stroke();
+                    const numFrames = frames.length - 1;
+                    if(numFrames > 0) {
+                        for(let i=0; i<=numFrames; i++) {
+                            let markY = frames[i][key]; // Marca dinàmica
+                            ctx.beginPath(); ctx.moveTo(xPos - 5, markY); ctx.lineTo(xPos + 5, markY); ctx.stroke();
+                        }
+                    }
+                };
+                drawRulerV(x1 - 40, 'y1');
+                drawRulerV(x2 - 40, 'y2');
+
+                // Títols
+                ctx.fillStyle = '#94a3b8'; ctx.font = '14px Inter'; ctx.textAlign='center';
+                ctx.fillText("Lineal (Velocitat Constant)", x1, 40);
+                ctx.fillText("Gravetat (Acceleració)", x2, 40);
+
+                const drawB = (x, y, color, opacity=1) => {
+                    ctx.save(); ctx.globalAlpha = opacity; ctx.fillStyle=color;
+                    ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI*2); ctx.fill(); ctx.restore();
+                }
+
+                // Onion Skin de trajectòria
+                const interval = Math.max(1, Math.floor(appState.fps / 6)); 
+                for(let i=0; i<=fIdx; i+=interval) {
+                    drawB(x1, frames[i].y1, '#3b82f6', 0.15);
+                    drawB(x2, frames[i].y2, '#ef4444', 0.15);
+                }
+
+                if(frames[fIdx]) {
+                    drawB(x1, frames[fIdx].y1, '#3b82f6', 1);
+                    drawB(x2, frames[fIdx].y2, '#ef4444', 1);
+                }
+            },
+
+            'sec-bot': function(ctx, w, h, frames, fIdx) {
+                ctx.clearRect(0,0,w,h); drawGrid(ctx,w,h);
+                ctx.fillStyle = '#334155'; ctx.fillRect(0, h - 30, w, 30);
+
+                // Regla Vertical a l'esquerra per mesurar l'altura dels bots
+                const startY = 50, endY = h - 30;
+                ctx.strokeStyle = '#475569'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(40, startY); ctx.lineTo(40, endY); ctx.stroke();
+                for(let i=0; i<=20; i++) {
+                    let markY = startY + (endY - startY) * (i/20);
+                    ctx.beginPath(); ctx.moveTo(35, markY); ctx.lineTo(45, markY); ctx.stroke();
+                }
+                
+                const drawB = (st, opacity) => {
+                    if(!st) return;
+                    ctx.save(); ctx.globalAlpha = opacity; ctx.translate(st.x, st.y); ctx.scale(st.sx, st.sy);
+                    ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.beginPath(); ctx.arc(-10, -10, 10, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+                };
+
+                if(document.getElementById('bot-onion').checked) {
+                    // Dibuixar cua d'onion skin reculant frames per difuminat
+                    let tailSize = Math.floor(appState.fps / 3);
+                    for(let i=1; i<=tailSize; i++) {
+                        let prevIdx = fIdx - i*2;
+                        if(prevIdx >= 0 && frames[prevIdx]) {
+                            drawB(frames[prevIdx], 0.3 - (i*0.03));
+                        }
+                    }
+                }
+                drawB(frames[fIdx], 1);
+            },
+
+            'sec-arc': function(ctx, w, h, frames, fIdx) {
+                ctx.clearRect(0,0,w,h); drawGrid(ctx,w,h);
+                ctx.fillStyle = '#334155'; ctx.fillRect(0, h - 30, w, 30);
+                
+                const drawB = (st, opacity) => {
+                    if(!st) return;
+                    ctx.save(); ctx.globalAlpha = opacity; ctx.translate(st.x, st.y); ctx.rotate(st.rot);
+                    ctx.fillStyle = st.c; ctx.beginPath(); ctx.arc(0, 0, st.r, 0, Math.PI*2); ctx.fill();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.moveTo(-st.r+2, 0); ctx.lineTo(st.r-2, 0); ctx.stroke();
+                    if(opacity===1) {
+                        ctx.rotate(-st.rot); ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                        ctx.beginPath(); ctx.arc(-st.r*0.3, -st.r*0.3, st.r*0.2, 0, Math.PI*2); ctx.fill();
+                    }
+                    ctx.restore();
+                };
+
+                const doOnion = document.getElementById('arc-onion').checked;
+                const interval = Math.max(1, Math.floor(appState.fps / 6)); 
+                
+                if(doOnion) {
+                    for(let i=0; i<frames.length; i+=interval) {
+                        drawB(frames[i].b1, 0.15);
+                        drawB(frames[i].b2, 0.15);
+                    }
+                }
+
+                if(frames[fIdx]) {
+                    drawB(frames[fIdx].b1, 1);
+                    drawB(frames[fIdx].b2, 1);
+                }
+            },
+
+            'sec-pendol': function(ctx, w, h, frames, fIdx) {
+                ctx.clearRect(0,0,w,h); drawGrid(ctx,w,h);
+                const L = Math.min(h * 0.6, 250);
+                const pivotY = 50;
+                const xLin = w/4; const xNat = (w/4)*3;
+
+                ctx.fillStyle = '#94a3b8'; ctx.font = '14px Inter'; ctx.textAlign='center';
+                ctx.fillText("Lineal (Mecànic)", xLin, 30);
+                ctx.fillText("Natural (Trigonomètric)", xNat, 30);
+
+                const drawP = (pivotX, angle, color, isGhost=false) => {
+                    const bobX = pivotX + L * Math.sin(angle);
+                    const bobY = pivotY + L * Math.cos(angle);
+                    
+                    ctx.save();
+                    ctx.globalAlpha = isGhost ? 0.15 : 1.0;
+                    ctx.strokeStyle = color; ctx.lineWidth = isGhost ? 1 : 3;
+                    ctx.beginPath(); ctx.moveTo(pivotX, pivotY); ctx.lineTo(bobX, bobY); ctx.stroke();
+                    
+                    ctx.fillStyle = color;
+                    ctx.beginPath(); ctx.arc(bobX, bobY, 15, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#0f172a';
+                    ctx.beginPath(); ctx.arc(pivotX, pivotY, 4, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+                }
+
+                const interval = Math.max(1, Math.floor(appState.fps / 6)); 
+                for(let i=0; i<frames.length; i+=interval) {
+                    drawP(xLin, frames[i].angleLin, '#fb7185', true); // Rose
+                    drawP(xNat, frames[i].angleNat, '#34d399', true); // Emerald
+                }
+
+                if(frames[fIdx]) {
+                    drawP(xLin, frames[fIdx].angleLin, '#fb7185');
+                    drawP(xNat, frames[fIdx].angleNat, '#34d399');
+                }
+            }
+        };
+
+        function drawCurrentTab() {
+            const id = appState.currentTabId;
+            const prefix = tabMap[id];
+            const canvas = document.getElementById(prefix + '-canvas');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            const frames = precalcData[id];
+            if(frames && frames.length > 0) {
+                renderers[id](ctx, canvas.width, canvas.height, frames, appState.currentFrame);
+            }
+        }
+
+        // ==========================================
+        // 4. BUCLE D'ANIMACIÓ I EVENTS
+        // ==========================================
+        
+        const btnPlay = document.getElementById('master-play');
+        const scrubber = document.getElementById('master-scrubber');
+        
+        function togglePlay() {
+            appState.isPlaying = !appState.isPlaying;
+            if(appState.isPlaying) {
+                if(appState.currentFrame >= appState.maxFrames) appState.currentFrame = 0;
+                appState.lastTick = performance.now();
+                btnPlay.innerHTML = '<i class="fa-solid fa-pause ml-0"></i>';
+                btnPlay.classList.replace('bg-blue-600', 'bg-rose-600');
+                btnPlay.classList.replace('hover:bg-blue-500', 'hover:bg-rose-500');
+            } else {
+                btnPlay.innerHTML = '<i class="fa-solid fa-play ml-1"></i>';
+                btnPlay.classList.replace('bg-rose-600', 'bg-blue-600');
+                btnPlay.classList.replace('hover:bg-rose-500', 'hover:bg-blue-500');
+            }
+        }
+
+        btnPlay.addEventListener('click', togglePlay);
+
+        scrubber.addEventListener('input', (e) => {
+            if(appState.isPlaying) togglePlay();
+            appState.currentFrame = parseInt(e.target.value);
+            document.getElementById('lbl-frame-current').textContent = appState.currentFrame;
+            drawCurrentTab();
+        });
+
+        function engineLoop(now) {
+            if(appState.isPlaying) {
+                const dt = now - appState.lastTick;
+                appState.lastTick = now;
+                appState.dtAccumulator += dt;
+                
+                const msPerFrame = 1000 / appState.fps;
+                
+                while(appState.dtAccumulator >= msPerFrame) {
+                    appState.dtAccumulator -= msPerFrame;
+                    appState.currentFrame++;
+                    
+                    if(appState.currentFrame > appState.maxFrames) {
+                        if (appState.currentTabId === 'sec-pendol' && document.getElementById('pendol-loop').checked) {
+                            appState.currentFrame = 0;
+                        } else {
+                            appState.currentFrame = appState.maxFrames;
+                            togglePlay(); // Auto-pause al final
+                            break;
+                        }
+                    }
+                    
+                    scrubber.value = appState.currentFrame;
+                    document.getElementById('lbl-frame-current').textContent = appState.currentFrame;
+                    drawCurrentTab();
+                }
+            }
+            requestAnimationFrame(engineLoop);
+        }
+
+        // ==========================================
+        // 5. INTERFÍCIE BÉZIER EDITOR
+        // ==========================================
+        const bzCanvas = document.getElementById('bezier-canvas');
+        const bzCtx = bzCanvas.getContext('2d');
+        let dragPoint = null;
+
+        function drawBezierUI() {
+            bzCtx.clearRect(0,0,200,200);
+            bzCtx.strokeStyle='#334155'; bzCtx.lineWidth=1;
+            for(let i=0; i<=200; i+=20) {
+                bzCtx.beginPath(); bzCtx.moveTo(i,0); bzCtx.lineTo(i,200); bzCtx.stroke();
+                bzCtx.beginPath(); bzCtx.moveTo(0,i); bzCtx.lineTo(200,i); bzCtx.stroke();
+            }
+            
+            const P0 = {x:0, y:200}, P3 = {x:200, y:0};
+            const P1 = {x: customBezier.p1x*200, y: 200 - customBezier.p1y*200};
+            const P2 = {x: customBezier.p2x*200, y: 200 - customBezier.p2y*200};
+
+            bzCtx.strokeStyle='#64748b'; bzCtx.lineWidth=2;
+            bzCtx.beginPath(); bzCtx.moveTo(P0.x, P0.y); bzCtx.lineTo(P1.x, P1.y); bzCtx.stroke();
+            bzCtx.beginPath(); bzCtx.moveTo(P3.x, P3.y); bzCtx.lineTo(P2.x, P2.y); bzCtx.stroke();
+            
+            bzCtx.strokeStyle='#3b82f6'; bzCtx.lineWidth=4;
+            bzCtx.beginPath(); bzCtx.moveTo(P0.x, P0.y);
+            bzCtx.bezierCurveTo(P1.x, P1.y, P2.x, P2.y, P3.x, P3.y);
+            bzCtx.stroke();
+
+            const drawPt = (p, c) => { bzCtx.fillStyle=c; bzCtx.beginPath(); bzCtx.arc(p.x, p.y, 6, 0, Math.PI*2); bzCtx.fill(); };
+            drawPt(P0, '#f8fafc'); drawPt(P3, '#f8fafc');
+            drawPt(P1, '#10b981'); drawPt(P2, '#f43f5e');
+        }
+
+        window.setBezier = (x1, y1, x2, y2) => {
+            customBezier.set(x1, y1, x2, y2); drawBezierUI(); recalculateCurrentTab();
+        };
+
+        bzCanvas.addEventListener('mousedown', e => {
+            const rect = bzCanvas.getBoundingClientRect();
+            // Càlcul de la proporció per assegurar precisió de mesura
+            const scaleX = bzCanvas.width / rect.width;
+            const scaleY = bzCanvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            
+            const p1x = customBezier.p1x*200, p1y = 200 - customBezier.p1y*200;
+            const p2x = customBezier.p2x*200, p2y = 200 - customBezier.p2y*200;
+            
+            if(Math.hypot(x-p1x, y-p1y) < 15) dragPoint = 1;
+            else if(Math.hypot(x-p2x, y-p2y) < 15) dragPoint = 2;
+        });
+
+        window.addEventListener('mousemove', e => {
+            if(!dragPoint) return;
+            const rect = bzCanvas.getBoundingClientRect();
+            const scaleX = bzCanvas.width / rect.width;
+            const scaleY = bzCanvas.height / rect.height;
+            
+            let x = Math.max(0, Math.min(200, (e.clientX - rect.left) * scaleX));
+            let y = Math.max(0, Math.min(200, (e.clientY - rect.top) * scaleY));
+            
+            if(dragPoint === 1) { customBezier.p1x = x/200; customBezier.p1y = (200-y)/200; }
+            else { customBezier.p2x = x/200; customBezier.p2y = (200-y)/200; }
+            
+            customBezier.build(); drawBezierUI(); recalculateCurrentTab();
+        });
+
+        window.addEventListener('mouseup', () => dragPoint = null);
+
+        // ==========================================
+        // 6. INICIALITZACIÓ I LISTENERS
+        // ==========================================
+        
+        document.getElementById('global-fps').addEventListener('change', e => {
+            appState.fps = parseInt(e.target.value);
+            recalculateCurrentTab();
+        });
+
+        document.getElementById('global-grid-chk').addEventListener('change', e => {
+            appState.showGrid = e.target.checked; drawCurrentTab();
+        });
+
+        // Lògica de Pestanyes (Tabs)
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
+                document.querySelectorAll('.tab-content').forEach(c => { c.classList.remove('block'); c.classList.add('hidden'); });
+                
+                btn.classList.add('tab-active');
+                appState.currentTabId = btn.dataset.target;
+                document.getElementById(appState.currentTabId).classList.remove('hidden');
+                document.getElementById(appState.currentTabId).classList.add('block');
+                
+                if(appState.isPlaying) togglePlay();
+                appState.currentFrame = 0;
+                appState.dtAccumulator = 0;
+                
+                // Forçar la recalculació un cop el CSS ha revelat el contenidor 
+                // Aquest és el detall que soluciona que la pilota vertical no estigui centrada!
+                setTimeout(() => { recalculateCurrentTab(); }, 50);
+            });
+        });
+
+        // Controls Ex 3 (Bot Vertical)
+        ['bot-grav', 'bot-bounc', 'bot-squash'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => recalculateCurrentTab());
+        });
+        document.getElementById('bot-onion').addEventListener('change', drawCurrentTab);
+
+        // Controls Ex 4 (Arc)
+        ['arc-mat1', 'arc-mat2'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => recalculateCurrentTab());
+        });
+        document.getElementById('arc-onion').addEventListener('change', drawCurrentTab);
+
+        // Resizes adaptatius
+        window.addEventListener('resize', () => { recalculateCurrentTab(); });
+
+        // Inicialització en arrencar
+        setTimeout(() => {
+            drawBezierUI();
+            recalculateCurrentTab();
+            requestAnimationFrame(engineLoop);
+        }, 100);
+
+    </script>
+</body>
+</html>
