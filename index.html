@@ -112,10 +112,10 @@
                     <h3 class="text-sm font-medium text-slate-300 mb-2">Corba d'Acceleració (Arrossega els punts)</h3>
                     <canvas id="bezier-canvas" width="200" height="200" class="border border-slate-600 mb-4"></canvas>
                     <div class="w-full flex gap-2">
-                        <button class="flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded" onclick="setBezier(0,0,1,1)">Lineal</button>
-                        <button class="flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded" onclick="setBezier(0.42,0,1,1)">Ease In</button>
-                        <button class="flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded" onclick="setBezier(0,0,0.58,1)">Ease Out</button>
-                        <button class="flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded" onclick="setBezier(0.42,0,0.58,1)">Ease In/Out</button>
+                        <button class="bezier-btn btn-active flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded transition-colors" onclick="setBezier(0,0,1,1, this)">Lineal</button>
+                        <button class="bezier-btn flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded transition-colors" onclick="setBezier(0.42,0,1,1, this)">Ease In</button>
+                        <button class="bezier-btn flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded transition-colors" onclick="setBezier(0,0,0.58,1, this)">Ease Out</button>
+                        <button class="bezier-btn flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded transition-colors" onclick="setBezier(0.42,0,0.58,1, this)">Ease In/Out</button>
                     </div>
                 </div>
             </div>
@@ -166,7 +166,7 @@
                     <h3 class="text-sm font-semibold border-b border-slate-700 pb-2">Comparativa de Materials</h3>
                     
                     <div>
-                        <label class="block text-xs text-rose-400 mb-1 uppercase font-bold">Pilota 1 (Vermella)</label>
+                        <label id="lbl-mat1" class="block text-xs text-white mb-1 uppercase font-bold transition-colors">Pilota 1</label>
                         <select id="arc-mat1" class="w-full bg-slate-800 text-sm p-2 rounded border border-slate-600 text-white outline-none">
                             <option value="pingpong">Ping Pong (Lleugera)</option>
                             <option value="rubber" selected>Pilota de Goma</option>
@@ -175,7 +175,7 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs text-emerald-400 mb-1 uppercase font-bold mt-2">Pilota 2 (Verda)</label>
+                        <label id="lbl-mat2" class="block text-xs text-white mb-1 uppercase font-bold mt-2 transition-colors">Pilota 2</label>
                         <select id="arc-mat2" class="w-full bg-slate-800 text-sm p-2 rounded border border-slate-600 text-white outline-none">
                             <option value="pingpong">Ping Pong (Lleugera)</option>
                             <option value="rubber">Pilota de Goma</option>
@@ -185,6 +185,10 @@
                     </div>
 
                     <label class="flex items-center text-sm text-slate-300 cursor-pointer mt-4">
+                        <input type="checkbox" id="arc-squash" checked class="mr-2 h-4 w-4 bg-slate-700 rounded border-slate-500"> Squash & Stretch
+                    </label>
+
+                    <label class="flex items-center text-sm text-slate-300 cursor-pointer mt-2">
                         <input type="checkbox" id="arc-onion" checked class="mr-2 h-4 w-4 bg-slate-700 rounded border-slate-500"> Onion Skin
                     </label>
                 </div>
@@ -232,9 +236,9 @@
         };
 
         const materials = {
-            'pingpong': { g: 800, bounce: 0.85, friction: 0.98, vx: 300, vy: -200, color: '#fcd34d', radius: 15 },
-            'rubber':   { g: 1500, bounce: 0.7, friction: 0.96, vx: 350, vy: -300, color: '#ef4444', radius: 22 },
-            'bowling':  { g: 2500, bounce: 0.22, friction: 0.80, vx: 200, vy: -80, color: '#10b981', radius: 32 },
+            'pingpong': { g: 800, bounce: 0.85, friction: 0.98, vx: 300, vy: -200, color: '#fcd34d', radius: 15, squashFactor: 0.15 },
+            'rubber':   { g: 1500, bounce: 0.7, friction: 0.96, vx: 350, vy: -300, color: '#ef4444', radius: 22, squashFactor: 0.8 },
+            'bowling':  { g: 2500, bounce: 0.22, friction: 0.80, vx: 200, vy: -80, color: '#10b981', radius: 32, squashFactor: 0.0 },
             'none': null
         };
 
@@ -244,7 +248,7 @@
         
         // LUT Bezier Curve Solver (per a la pestanya 1)
         class BezierLUT {
-            constructor() { this.p1x = 0.42; this.p1y = 0; this.p2x = 0.58; this.p2y = 1; this.build(); }
+            constructor() { this.p1x = 0; this.p1y = 0; this.p2x = 1; this.p2y = 1; this.build(); }
             set(x1, y1, x2, y2) { this.p1x = x1; this.p1y = y1; this.p2x = x2; this.p2y = y2; this.build(); }
             build() {
                 this.lut = [];
@@ -327,7 +331,7 @@
                             }
                             
                             ball.vy = -ball.vy * bounceUI;
-                            if (Math.abs(ball.vy) < 20 && ball.y + ball.r >= ground - 1) {
+                            if (Math.abs(ball.vy) < 35 && ball.y + ball.r >= ground - 1) {
                                 ball.vy = 0; 
                                 isResting = true;
                             }
@@ -352,6 +356,7 @@
                 const dt = 1.0 / appState.fps; // Base de temps adaptada als FPS globals
                 const mat1 = materials[document.getElementById('arc-mat1').value];
                 const mat2 = materials[document.getElementById('arc-mat2').value];
+                const doSquash = document.getElementById('arc-squash').checked;
                 const ground = height - 30;
 
                 const createBallState = (mat) => {
@@ -377,21 +382,39 @@
                             b.y += b.vy * dt;
                             b.rot += (b.vx * dt) / b.radius;
                             
+                            b.sx = 1; b.sy = 1; b.sAngle = 0;
+                            
                             if (b.y + b.radius >= ground) {
                                 b.y = ground - b.radius;
-                                b.vy = -b.vy * b.bounce;
-                                if (Math.abs(b.vy) < 30) { 
-                                    b.vy = 0; 
-                                    b.vx *= b.friction; // Fricció ràpida en rodar per terra
-                                } else {
-                                    b.vx *= 0.98; // Lleugera pèrdua d'inèrcia a cada bot fort
+                                
+                                // Deformació de l'impacte contra el terra
+                                if (doSquash && Math.abs(b.vy) > 50) {
+                                    let impact = Math.min(0.5, Math.abs(b.vy) * 0.0004 * b.squashFactor);
+                                    b.sy = 1 - impact; b.sx = 1 + impact;
+                                    b.sAngle = 0; // S'esclafa completament horitzontal respecte al terra
                                 }
+                                
+                                b.vy = -b.vy * b.bounce;
+                                if (Math.abs(b.vy) < 40) { 
+                                    b.vy = 0; 
+                                    b.vx *= Math.pow(b.friction, 24 / appState.fps); // Fricció ràpida en rodar per terra adaptada a FPS
+                                } else {
+                                    b.vx *= Math.pow(0.98, 24 / appState.fps); // Lleugera pèrdua d'inèrcia a cada bot fort adaptada a FPS
+                                }
+                            } else if (doSquash) {
+                                // Deformació durant la trajectòria aerodinàmica
+                                let speed = Math.hypot(b.vx, b.vy);
+                                let stretch = Math.min(0.6, speed * 0.0003 * b.squashFactor);
+                                b.sy = 1 + stretch; b.sx = 1 / b.sy;
+                                // Calcula l'angle exacte del vector del moviment
+                                b.sAngle = Math.atan2(b.vy, b.vx) - Math.PI/2; 
                             }
-                            if (b.x + b.radius > width || (b.vy===0 && Math.abs(b.vx)<1)) {
+                            
+                            if (b.x + b.radius > width || (b.vy===0 && Math.abs(b.vx)<2)) {
                                 b.active = false;
                             }
                         }
-                        return { x: b.x, y: b.y, rot: b.rot, r: b.radius, c: b.color };
+                        return { x: b.x, y: b.y, rot: b.rot, r: b.radius, c: b.color, sx: b.sx || 1, sy: b.sy || 1, sAngle: b.sAngle || 0 };
                     };
 
                     f.b1 = updateBall(b1);
@@ -605,7 +628,18 @@
                 
                 const drawB = (st, opacity) => {
                     if(!st) return;
-                    ctx.save(); ctx.globalAlpha = opacity; ctx.translate(st.x, st.y); ctx.rotate(st.rot);
+                    ctx.save(); ctx.globalAlpha = opacity; ctx.translate(st.x, st.y); 
+                    
+                    // Squash & Stretch: orienta, deforma i recupera l'angle base
+                    if (st.sx !== 1 || st.sy !== 1) {
+                        ctx.rotate(st.sAngle);
+                        ctx.scale(st.sx, st.sy);
+                        ctx.rotate(-st.sAngle);
+                    }
+                    
+                    // Rotació visual del gir de la pilota
+                    ctx.rotate(st.rot);
+                    
                     ctx.fillStyle = st.c; ctx.beginPath(); ctx.arc(0, 0, st.r, 0, Math.PI*2); ctx.fill();
                     ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 3;
                     ctx.beginPath(); ctx.moveTo(-st.r+2, 0); ctx.lineTo(st.r-2, 0); ctx.stroke();
@@ -778,8 +812,13 @@
             drawPt(P1, '#10b981'); drawPt(P2, '#f43f5e');
         }
 
-        window.setBezier = (x1, y1, x2, y2) => {
+        window.setBezier = (x1, y1, x2, y2, btnElement = null) => {
             customBezier.set(x1, y1, x2, y2); drawBezierUI(); recalculateCurrentTab();
+            
+            document.querySelectorAll('.bezier-btn').forEach(btn => btn.classList.remove('btn-active'));
+            if (btnElement) {
+                btnElement.classList.add('btn-active');
+            }
         };
 
         bzCanvas.addEventListener('mousedown', e => {
@@ -810,6 +849,9 @@
             else { customBezier.p2x = x/200; customBezier.p2y = (200-y)/200; }
             
             customBezier.build(); drawBezierUI(); recalculateCurrentTab();
+            
+            // Deseleccionar botons si s'arrossega una corba personalitzada
+            document.querySelectorAll('.bezier-btn').forEach(btn => btn.classList.remove('btn-active'));
         });
 
         window.addEventListener('mouseup', () => dragPoint = null);
@@ -854,9 +896,19 @@
         });
         document.getElementById('bot-onion').addEventListener('change', drawCurrentTab);
 
+        function updateMaterialColors() {
+            const m1 = materials[document.getElementById('arc-mat1').value];
+            const m2 = materials[document.getElementById('arc-mat2').value];
+            document.getElementById('lbl-mat1').style.color = m1 ? m1.color : 'white';
+            document.getElementById('lbl-mat2').style.color = m2 ? m2.color : 'white';
+        }
+
         // Controls Ex 4 (Arc)
-        ['arc-mat1', 'arc-mat2'].forEach(id => {
-            document.getElementById(id).addEventListener('change', () => recalculateCurrentTab());
+        ['arc-mat1', 'arc-mat2', 'arc-squash'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => {
+                updateMaterialColors();
+                recalculateCurrentTab();
+            });
         });
         document.getElementById('arc-onion').addEventListener('change', drawCurrentTab);
 
@@ -866,6 +918,7 @@
         // Inicialització en arrencar
         setTimeout(() => {
             drawBezierUI();
+            updateMaterialColors();
             recalculateCurrentTab();
             requestAnimationFrame(engineLoop);
         }, 100);
