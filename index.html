@@ -46,7 +46,7 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        #bezier-canvas { background-color: #0f172a; border-radius: 4px; cursor: crosshair; }
+        .bezier-editor { background-color: #0f172a; border-radius: 4px; cursor: crosshair; }
     </style>
 </head>
 <body class="p-4 md:p-8 flex flex-col min-h-screen">
@@ -78,11 +78,12 @@
 
         <!-- TABS NAV -->
         <div class="flex border-b border-slate-700 mb-6 overflow-x-auto no-scrollbar text-sm">
-            <button class="tab-btn whitespace-nowrap flex-1 py-3 px-2 text-slate-400 hover:text-blue-400 tab-active" data-target="sec-vehicle"><i class="fa-solid fa-bezier-curve mr-1"></i> 1. Vehicle (Bézier)</button>
-            <button class="tab-btn whitespace-nowrap flex-1 py-3 px-2 text-slate-400 hover:text-blue-400" data-target="sec-caiguda"><i class="fa-solid fa-arrows-down-to-line mr-1"></i> 2. Caiguda Lliure</button>
-            <button class="tab-btn whitespace-nowrap flex-1 py-3 px-2 text-slate-400 hover:text-blue-400" data-target="sec-bot"><i class="fa-solid fa-arrow-down-up-across-line mr-1"></i> 3. Bot Vertical</button>
-            <button class="tab-btn whitespace-nowrap flex-1 py-3 px-2 text-slate-400 hover:text-blue-400" data-target="sec-arc"><i class="fa-solid fa-wobble mr-1"></i> 4. Bot en Arc</button>
-            <button class="tab-btn whitespace-nowrap flex-1 py-3 px-2 text-slate-400 hover:text-blue-400" data-target="sec-pendol"><i class="fa-solid fa-clock mr-1"></i> 5. Pèndol</button>
+            <button class="tab-btn whitespace-nowrap flex-1 py-3 px-2 text-slate-400 hover:text-blue-400 tab-active" data-target="sec-coet"><i class="fa-solid fa-rocket mr-1"></i> 1. Coet (Bézier)</button>
+            <button class="tab-btn whitespace-nowrap flex-1 py-3 px-2 text-slate-400 hover:text-blue-400" data-target="sec-vehicle"><i class="fa-solid fa-car-side mr-1"></i> 2. Vehicle (Bézier)</button>
+            <button class="tab-btn whitespace-nowrap flex-1 py-3 px-2 text-slate-400 hover:text-blue-400" data-target="sec-caiguda"><i class="fa-solid fa-arrows-down-to-line mr-1"></i> 3. Caiguda Lliure</button>
+            <button class="tab-btn whitespace-nowrap flex-1 py-3 px-2 text-slate-400 hover:text-blue-400" data-target="sec-bot"><i class="fa-solid fa-arrow-down-up-across-line mr-1"></i> 4. Bot Vertical</button>
+            <button class="tab-btn whitespace-nowrap flex-1 py-3 px-2 text-slate-400 hover:text-blue-400" data-target="sec-arc"><i class="fa-solid fa-wobble mr-1"></i> 5. Bot en Arc</button>
+            <button class="tab-btn whitespace-nowrap flex-1 py-3 px-2 text-slate-400 hover:text-blue-400" data-target="sec-pendol"><i class="fa-solid fa-clock mr-1"></i> 6. Pèndol</button>
         </div>
 
         <!-- SHARED TIMELINE CONTROLS -->
@@ -99,29 +100,51 @@
             </div>
         </div>
 
-        <!-- 1. VEHICLE (BEZIER) -->
-        <div id="sec-vehicle" class="tab-content block flex-grow">
+        <!-- 1. COET (BEZIER) -->
+        <div id="sec-coet" class="tab-content block flex-grow">
             <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="lg:col-span-2 flex flex-col">
-                    <h2 class="text-xl font-semibold mb-2">Editor d'Spacing (Bézier Custom)</h2>
+                    <h2 class="text-xl font-semibold mb-2">Editor d'Spacing: Coet (Desplaçament Vertical)</h2>
+                    <div class="canvas-container flex-grow min-h-[250px]" id="coet-container">
+                        <canvas id="coet-canvas"></canvas>
+                    </div>
+                </div>
+                <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex flex-col items-center">
+                    <h3 class="text-sm font-medium text-slate-300 mb-2">Corba d'Acceleració (Arrossega els punts)</h3>
+                    <canvas id="bezier-canvas-coet" width="200" height="200" class="bezier-editor border border-slate-600 mb-4"></canvas>
+                    <div class="w-full flex gap-2">
+                        <button class="bezier-btn btn-active flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded transition-colors" onclick="setBezier(0,0,1,1, this, 'coet')">Lineal</button>
+                        <button class="bezier-btn flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded transition-colors" onclick="setBezier(0.42,0,1,1, this, 'coet')">Ease In</button>
+                        <button class="bezier-btn flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded transition-colors" onclick="setBezier(0,0,0.58,1, this, 'coet')">Ease Out</button>
+                        <button class="bezier-btn flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded transition-colors" onclick="setBezier(0.42,0,0.58,1, this, 'coet')">Ease In/Out</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. VEHICLE (BEZIER) -->
+        <div id="sec-vehicle" class="tab-content hidden flex-grow">
+            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 flex flex-col">
+                    <h2 class="text-xl font-semibold mb-2">Editor d'Spacing: Vehicle (Desplaçament Horitzontal)</h2>
                     <div class="canvas-container flex-grow min-h-[250px]" id="veh-container">
                         <canvas id="veh-canvas"></canvas>
                     </div>
                 </div>
                 <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex flex-col items-center">
                     <h3 class="text-sm font-medium text-slate-300 mb-2">Corba d'Acceleració (Arrossega els punts)</h3>
-                    <canvas id="bezier-canvas" width="200" height="200" class="border border-slate-600 mb-4"></canvas>
+                    <canvas id="bezier-canvas-veh" width="200" height="200" class="bezier-editor border border-slate-600 mb-4"></canvas>
                     <div class="w-full flex gap-2">
-                        <button class="bezier-btn btn-active flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded transition-colors" onclick="setBezier(0,0,1,1, this)">Lineal</button>
-                        <button class="bezier-btn flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded transition-colors" onclick="setBezier(0.42,0,1,1, this)">Ease In</button>
-                        <button class="bezier-btn flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded transition-colors" onclick="setBezier(0,0,0.58,1, this)">Ease Out</button>
-                        <button class="bezier-btn flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded transition-colors" onclick="setBezier(0.42,0,0.58,1, this)">Ease In/Out</button>
+                        <button class="bezier-btn btn-active flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded transition-colors" onclick="setBezier(0,0,1,1, this, 'veh')">Lineal</button>
+                        <button class="bezier-btn flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded transition-colors" onclick="setBezier(0.42,0,1,1, this, 'veh')">Ease In</button>
+                        <button class="bezier-btn flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded transition-colors" onclick="setBezier(0,0,0.58,1, this, 'veh')">Ease Out</button>
+                        <button class="bezier-btn flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded transition-colors" onclick="setBezier(0.42,0,0.58,1, this, 'veh')">Ease In/Out</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 2. CAIGUDA (COMPARATIVA) -->
+        <!-- 3. CAIGUDA (COMPARATIVA) -->
         <div id="sec-caiguda" class="tab-content hidden flex-grow">
             <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 h-full flex flex-col">
                 <h2 class="text-xl font-semibold mb-2">Caiguda: Lineal vs Gravetat</h2>
@@ -131,7 +154,7 @@
             </div>
         </div>
 
-        <!-- 3. BOT VERTICAL -->
+        <!-- 4. BOT VERTICAL -->
         <div id="sec-bot" class="tab-content hidden flex-grow">
             <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
                 <div class="lg:col-span-3 canvas-container min-h-[400px]" id="bot-container">
@@ -156,7 +179,7 @@
             </div>
         </div>
 
-        <!-- 4. BOT EN ARC (DOBLE) -->
+        <!-- 5. BOT EN ARC (DOBLE) -->
         <div id="sec-arc" class="tab-content hidden flex-grow">
             <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
                 <div class="lg:col-span-3 canvas-container min-h-[400px]" id="arc-container">
@@ -195,7 +218,7 @@
             </div>
         </div>
 
-        <!-- 5. PÈNDOL -->
+        <!-- 6. PÈNDOL -->
         <div id="sec-pendol" class="tab-content hidden flex-grow">
             <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 h-full flex flex-col">
                 <h2 class="text-xl font-semibold mb-2">Pèndol: Moviment Mecànic vs Natural</h2>
@@ -226,7 +249,7 @@
         // ==========================================
         const appState = {
             fps: 24,
-            currentTabId: 'sec-vehicle',
+            currentTabId: 'sec-coet',
             showGrid: false,
             isPlaying: false,
             currentFrame: 0,
@@ -246,7 +269,7 @@
         // 2. MATEMÀTIQUES I FÍSIQUES (PRE-CALCULADORES)
         // ==========================================
         
-        // LUT Bezier Curve Solver (per a la pestanya 1)
+        // LUT Bezier Curve Solver (per a les pestanyes 1 i 2)
         class BezierLUT {
             constructor() { this.p1x = 0; this.p1y = 0; this.p2x = 1; this.p2y = 1; this.build(); }
             set(x1, y1, x2, y2) { this.p1x = x1; this.p1y = y1; this.p2x = x2; this.p2y = y2; this.build(); }
@@ -267,18 +290,38 @@
                 return pA.y + ratio * (pB.y - pA.y);
             }
         }
-        const customBezier = new BezierLUT();
+        
+        const bezierCoet = new BezierLUT();
+        const bezierVeh = new BezierLUT();
+        
+        const getBezierData = (id) => {
+            if (id === 'sec-coet' || id === 'coet') return { instance: bezierCoet, canvasId: 'bezier-canvas-coet' };
+            if (id === 'sec-vehicle' || id === 'veh') return { instance: bezierVeh, canvasId: 'bezier-canvas-veh' };
+            return null;
+        };
 
         // Controladors de cada pestanya per generar dades fotograma a fotograma
         const simulators = {
             
+            'sec-coet': function(width, height) {
+                const frames = [];
+                const dur = 2.0; const totalFrames = Math.floor(appState.fps * dur);
+                const startY = height - 60, distance = height - 120, xPos = width / 2;
+                for(let i=0; i<=totalFrames; i++) {
+                    let t = i / totalFrames;
+                    let ease = bezierCoet.getY(t);
+                    frames.push({ x: xPos, y: startY - distance * ease, ease });
+                }
+                return frames;
+            },
+
             'sec-vehicle': function(width, height) {
                 const frames = [];
                 const dur = 2.0; const totalFrames = Math.floor(appState.fps * dur);
                 const startX = 60, distance = width - 120, yPos = height - 55;
                 for(let i=0; i<=totalFrames; i++) {
                     let t = i / totalFrames;
-                    let ease = customBezier.getY(t);
+                    let ease = bezierVeh.getY(t);
                     frames.push({ x: startX + distance * ease, y: yPos, ease });
                 }
                 return frames;
@@ -451,10 +494,11 @@
 
         // Cache de dades calculades
         const precalcData = {
-            'sec-vehicle': [], 'sec-caiguda': [], 'sec-bot': [], 'sec-arc': [], 'sec-pendol': []
+            'sec-coet': [], 'sec-vehicle': [], 'sec-caiguda': [], 'sec-bot': [], 'sec-arc': [], 'sec-pendol': []
         };
 
         const tabMap = {
+            'sec-coet': 'coet',
             'sec-vehicle': 'veh',
             'sec-caiguda': 'caiguda',
             'sec-bot': 'bot',
@@ -502,6 +546,55 @@
         }
 
         const renderers = {
+            'sec-coet': function(ctx, w, h, frames, fIdx) {
+                ctx.clearRect(0,0,w,h); drawGrid(ctx,w,h);
+                
+                const startY = h - 60, endY = 60;
+                const xPos = w / 2;
+
+                // Regla Vertical per mostrar l'espaiat real per fotograma
+                ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(xPos - 40, startY + 15); ctx.lineTo(xPos - 40, endY - 15); ctx.stroke();
+                const numFrames = frames.length - 1;
+                if(numFrames > 0) {
+                    for(let i=0; i<=numFrames; i++) {
+                        let markY = frames[i].y;
+                        ctx.beginPath(); ctx.moveTo(xPos - 45, markY); ctx.lineTo(xPos - 35, markY); ctx.stroke();
+                    }
+                }
+
+                const drawRocket = (x, y, opacity) => {
+                    ctx.save(); ctx.globalAlpha = opacity; ctx.translate(x, y);
+                    
+                    if (opacity === 1) {
+                        ctx.fillStyle = '#f59e0b'; 
+                        ctx.beginPath(); ctx.moveTo(-8, 15); ctx.lineTo(0, 30 + Math.random()*10); ctx.lineTo(8, 15); ctx.closePath(); ctx.fill();
+                        ctx.fillStyle = '#fef08a';
+                        ctx.beginPath(); ctx.moveTo(-4, 15); ctx.lineTo(0, 22 + Math.random()*5); ctx.lineTo(4, 15); ctx.closePath(); ctx.fill();
+                    }
+
+                    ctx.fillStyle = '#ef4444'; 
+                    ctx.beginPath(); ctx.moveTo(10, 5); ctx.lineTo(18, 20); ctx.lineTo(8, 15); ctx.closePath(); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(-10, 5); ctx.lineTo(-18, 20); ctx.lineTo(-8, 15); ctx.closePath(); ctx.fill();
+                    
+                    ctx.fillStyle = '#f8fafc'; 
+                    ctx.beginPath(); ctx.moveTo(0, -25); ctx.quadraticCurveTo(12, -10, 10, 15); ctx.lineTo(-10, 15); ctx.quadraticCurveTo(-12, -10, 0, -25); ctx.closePath(); ctx.fill();
+                    
+                    ctx.fillStyle = '#3b82f6'; 
+                    ctx.beginPath(); ctx.arc(0, -5, 4, 0, Math.PI*2); ctx.fill();
+                    ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.5; ctx.stroke();
+
+                    ctx.restore();
+                };
+
+                const interval = Math.max(1, Math.floor(appState.fps / 6)); 
+                for(let i=0; i<frames.length; i+=interval) {
+                    drawRocket(frames[i].x, frames[i].y, 0.15);
+                }
+
+                if(frames[fIdx]) drawRocket(frames[fIdx].x, frames[fIdx].y, 1);
+            },
+
             'sec-vehicle': function(ctx, w, h, frames, fIdx) {
                 ctx.clearRect(0,0,w,h); drawGrid(ctx,w,h);
                 // Carretera
@@ -782,11 +875,12 @@
         // ==========================================
         // 5. INTERFÍCIE BÉZIER EDITOR
         // ==========================================
-        const bzCanvas = document.getElementById('bezier-canvas');
-        const bzCtx = bzCanvas.getContext('2d');
-        let dragPoint = null;
-
-        function drawBezierUI() {
+        
+        function drawBezierUI(bzInstance, canvasId) {
+            const bzCanvas = document.getElementById(canvasId);
+            if (!bzCanvas) return;
+            const bzCtx = bzCanvas.getContext('2d');
+            
             bzCtx.clearRect(0,0,200,200);
             bzCtx.strokeStyle='#334155'; bzCtx.lineWidth=1;
             for(let i=0; i<=200; i+=20) {
@@ -795,8 +889,8 @@
             }
             
             const P0 = {x:0, y:200}, P3 = {x:200, y:0};
-            const P1 = {x: customBezier.p1x*200, y: 200 - customBezier.p1y*200};
-            const P2 = {x: customBezier.p2x*200, y: 200 - customBezier.p2y*200};
+            const P1 = {x: bzInstance.p1x*200, y: 200 - bzInstance.p1y*200};
+            const P2 = {x: bzInstance.p2x*200, y: 200 - bzInstance.p2y*200};
 
             bzCtx.strokeStyle='#64748b'; bzCtx.lineWidth=2;
             bzCtx.beginPath(); bzCtx.moveTo(P0.x, P0.y); bzCtx.lineTo(P1.x, P1.y); bzCtx.stroke();
@@ -812,49 +906,65 @@
             drawPt(P1, '#10b981'); drawPt(P2, '#f43f5e');
         }
 
-        window.setBezier = (x1, y1, x2, y2, btnElement = null) => {
-            customBezier.set(x1, y1, x2, y2); drawBezierUI(); recalculateCurrentTab();
+        window.setBezier = (x1, y1, x2, y2, btnElement, type) => {
+            const data = getBezierData(type);
+            if (!data) return;
             
-            document.querySelectorAll('.bezier-btn').forEach(btn => btn.classList.remove('btn-active'));
+            data.instance.set(x1, y1, x2, y2); 
+            drawBezierUI(data.instance, data.canvasId); 
+            recalculateCurrentTab();
+            
+            const container = document.getElementById(data.canvasId).parentElement;
+            container.querySelectorAll('.bezier-btn').forEach(btn => btn.classList.remove('btn-active'));
             if (btnElement) {
                 btnElement.classList.add('btn-active');
             }
         };
 
-        bzCanvas.addEventListener('mousedown', e => {
-            const rect = bzCanvas.getBoundingClientRect();
-            // Càlcul de la proporció per assegurar precisió de mesura
-            const scaleX = bzCanvas.width / rect.width;
-            const scaleY = bzCanvas.height / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
-            
-            const p1x = customBezier.p1x*200, p1y = 200 - customBezier.p1y*200;
-            const p2x = customBezier.p2x*200, p2y = 200 - customBezier.p2y*200;
-            
-            if(Math.hypot(x-p1x, y-p1y) < 15) dragPoint = 1;
-            else if(Math.hypot(x-p2x, y-p2y) < 15) dragPoint = 2;
-        });
+        function setupBezierEvents(canvasId, bzInstance) {
+            const bzCanvas = document.getElementById(canvasId);
+            if (!bzCanvas) return;
+            let dragPoint = null;
 
-        window.addEventListener('mousemove', e => {
-            if(!dragPoint) return;
-            const rect = bzCanvas.getBoundingClientRect();
-            const scaleX = bzCanvas.width / rect.width;
-            const scaleY = bzCanvas.height / rect.height;
-            
-            let x = Math.max(0, Math.min(200, (e.clientX - rect.left) * scaleX));
-            let y = Math.max(0, Math.min(200, (e.clientY - rect.top) * scaleY));
-            
-            if(dragPoint === 1) { customBezier.p1x = x/200; customBezier.p1y = (200-y)/200; }
-            else { customBezier.p2x = x/200; customBezier.p2y = (200-y)/200; }
-            
-            customBezier.build(); drawBezierUI(); recalculateCurrentTab();
-            
-            // Deseleccionar botons si s'arrossega una corba personalitzada
-            document.querySelectorAll('.bezier-btn').forEach(btn => btn.classList.remove('btn-active'));
-        });
+            bzCanvas.addEventListener('mousedown', e => {
+                const rect = bzCanvas.getBoundingClientRect();
+                const scaleX = bzCanvas.width / rect.width;
+                const scaleY = bzCanvas.height / rect.height;
+                const x = (e.clientX - rect.left) * scaleX;
+                const y = (e.clientY - rect.top) * scaleY;
+                
+                const p1x = bzInstance.p1x*200, p1y = 200 - bzInstance.p1y*200;
+                const p2x = bzInstance.p2x*200, p2y = 200 - bzInstance.p2y*200;
+                
+                if(Math.hypot(x-p1x, y-p1y) < 15) dragPoint = 1;
+                else if(Math.hypot(x-p2x, y-p2y) < 15) dragPoint = 2;
+            });
 
-        window.addEventListener('mouseup', () => dragPoint = null);
+            window.addEventListener('mousemove', e => {
+                if(!dragPoint) return;
+                const data = getBezierData(appState.currentTabId);
+                if (!data || data.canvasId !== canvasId) return;
+
+                const rect = bzCanvas.getBoundingClientRect();
+                const scaleX = bzCanvas.width / rect.width;
+                const scaleY = bzCanvas.height / rect.height;
+                
+                let x = Math.max(0, Math.min(200, (e.clientX - rect.left) * scaleX));
+                let y = Math.max(0, Math.min(200, (e.clientY - rect.top) * scaleY));
+                
+                if(dragPoint === 1) { bzInstance.p1x = x/200; bzInstance.p1y = (200-y)/200; }
+                else { bzInstance.p2x = x/200; bzInstance.p2y = (200-y)/200; }
+                
+                bzInstance.build(); 
+                drawBezierUI(bzInstance, canvasId); 
+                recalculateCurrentTab();
+                
+                const container = bzCanvas.parentElement;
+                container.querySelectorAll('.bezier-btn').forEach(btn => btn.classList.remove('btn-active'));
+            });
+
+            window.addEventListener('mouseup', () => dragPoint = null);
+        }
 
         // ==========================================
         // 6. INICIALITZACIÓ I LISTENERS
@@ -917,7 +1027,10 @@
 
         // Inicialització en arrencar
         setTimeout(() => {
-            drawBezierUI();
+            setupBezierEvents('bezier-canvas-coet', bezierCoet);
+            setupBezierEvents('bezier-canvas-veh', bezierVeh);
+            drawBezierUI(bezierCoet, 'bezier-canvas-coet');
+            drawBezierUI(bezierVeh, 'bezier-canvas-veh');
             updateMaterialColors();
             recalculateCurrentTab();
             requestAnimationFrame(engineLoop);
